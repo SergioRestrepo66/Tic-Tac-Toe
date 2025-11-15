@@ -453,6 +453,18 @@ export default function TicTacToeGalactico() {
               <button onClick={() => setMostrarUnirse(true)} className="menu-button join-game-button">
                 Unirse a Partida
               </button>
+              {modoAlmacenamiento === 'local' && (
+                <p style={{
+                  color: 'rgba(255, 214, 10, 0.8)',
+                  fontSize: '0.8rem',
+                  marginTop: '1rem',
+                  lineHeight: '1.4',
+                  background: 'rgba(255, 214, 10, 0.1)',
+                  padding: '10px',
+                  borderRadius: '8px'
+                }}>
+                </p>
+              )}
             </div>
           )}
           
@@ -496,6 +508,16 @@ export default function TicTacToeGalactico() {
                 <div className="spinner"/>
                 <p className="waiting-text">Esperando jugador...</p>
               </div>
+              {modoAlmacenamiento === 'local' && (
+                <p style={{
+                  color: 'rgba(255, 214, 10, 0.9)',
+                  fontSize: '0.85rem',
+                  marginTop: '1rem',
+                  lineHeight: '1.4'
+                }}>
+                  Abre otra pestaña en este mismo navegador para unirte
+                </p>
+              )}
               <button onClick={volverAlMenu} className="cancel-button">Cancelar</button>
             </div>
           )}
