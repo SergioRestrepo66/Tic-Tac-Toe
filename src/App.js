@@ -86,10 +86,14 @@ const generarCodigo = () => {
   return Array.from({length: 6}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 };
 
-// Funciones de almacenamiento compartido usando window.storage
-const guardarPartida = async (codigo, datos) => {
+// Sistema de almacenamiento en memoria para partidas multijugador
+const partidasEnMemoria = {};
+
+const guardarPartida = (codigo, datos) => {
   try {
-    await window.storage.set(`tictactoe_${codigo}`, JSON.stringify(datos), true);
+    console.log('Guardando partida:', codigo, datos);
+    partidasEnMemoria[codigo] = datos;
+    console.log('Partida guardada exitosamente');
     return true;
   } catch (error) {
     console.error('Error guardando partida:', error);
@@ -97,19 +101,22 @@ const guardarPartida = async (codigo, datos) => {
   }
 };
 
-const obtenerPartida = async (codigo) => {
+const obtenerPartida = (codigo) => {
   try {
-    const result = await window.storage.get(`tictactoe_${codigo}`, true);
-    return result ? JSON.parse(result.value) : null;
+    console.log('Obteniendo partida:', codigo);
+    const partida = partidasEnMemoria[codigo] || null;
+    console.log('Partida obtenida:', partida);
+    return partida;
   } catch (error) {
-    console.log('Partida no encontrada:', error);
+    console.error('Error obteniendo partida:', error);
     return null;
   }
 };
 
-const eliminarPartida = async (codigo) => {
+const eliminarPartida = (codigo) => {
   try {
-    await window.storage.delete(`tictactoe_${codigo}`, true);
+    delete partidasEnMemoria[codigo];
+    console.log('Partida eliminada:', codigo);
   } catch (error) {
     console.error('Error eliminando partida:', error);
   }
@@ -142,7 +149,23 @@ export default function TicTacToeGalactico() {
   const [dificultadIA, setDificultadIA] = useState('media');
   const [simboloJugador, setSimboloJugador] = useState('X');
   const [contadorPartidas, setContadorPartidas] = useState(0);
-  const [errorConexion, setErrorConexion] = useState('');
+  const [modoAlmacenamiento, setModoAlmacenamiento] = useState('desconocido');
+
+  useEffect(() => {
+    // Detectar si window.storage está disponible
+    const detectarAlmacenamiento = async () => {
+      try {
+        if (typeof window !== 'undefined' && window.storage) {
+          setModoAlmacenamiento('cloud');
+        } else {
+          setModoAlmacenamiento('local');
+        }
+      } catch {
+        setModoAlmacenamiento('local');
+      }
+    };
+    detectarAlmacenamiento();
+  }, []);
 
   useEffect(() => {
     if (tablero.every(c => c === null) && resultado) setResultado(null);
@@ -166,15 +189,13 @@ export default function TicTacToeGalactico() {
             if (JSON.stringify(datos.resultado) !== JSON.stringify(resultado)) {
               setResultado(datos.resultado);
             }
-            setErrorConexion('');
           }
         } catch (error) {
           console.error('Error sincronizando:', error);
-          setErrorConexion('Error de conexión');
         }
       };
       sync();
-      const intervalo = setInterval(sync, 2000);
+      const intervalo = setInterval(sync, 1500);
       return () => clearInterval(intervalo);
     }
   }, [modoJuego, codigoSesion, esperandoJugador, miSimbolo, mostrarUnirse, tablero, esXTurno, resultado]);
@@ -202,65 +223,79 @@ export default function TicTacToeGalactico() {
   };
 
   const iniciarMultijugador = async () => {
-    const codigo = generarCodigo();
-    setCodigoSesion(codigo);
-    setModoJuego('multijugador');
-    setEsperandoJugador(true);
-    setMiSimbolo('X');
-    setTablero(Array(9).fill(null));
-    setResultado(null);
-    setEsXTurno(true);
-    
-    const guardado = await guardarPartida(codigo, {
-      tablero: Array(9).fill(null),
-      turno: 'X',
-      jugadores: 1,
-      resultado: null,
-      creadoEn: Date.now()
-    });
-    
-    if (!guardado) {
-      alert('Error al crear la partida. Intenta nuevamente.');
+    try {
+      const codigo = generarCodigo();
+      setCodigoSesion(codigo);
+      setModoJuego('multijugador');
+      setEsperandoJugador(true);
+      setMiSimbolo('X');
+      setTablero(Array(9).fill(null));
+      setResultado(null);
+      setEsXTurno(true);
+      
+      const guardado = await guardarPartida(codigo, {
+        tablero: Array(9).fill(null),
+        turno: 'X',
+        jugadores: 1,
+        resultado: null,
+        creadoEn: Date.now()
+      });
+      
+      if (!guardado) {
+        alert('Error al crear la partida. Por favor intenta nuevamente.');
+        setEsperandoJugador(false);
+        setModoJuego(null);
+        setCodigoSesion('');
+      }
+    } catch (error) {
+      console.error('Error en iniciarMultijugador:', error);
+      alert('Error al crear la partida. Por favor intenta nuevamente.');
       setEsperandoJugador(false);
       setModoJuego(null);
+      setCodigoSesion('');
     }
   };
 
   const unirseAPartida = async () => {
-    const codigo = inputCodigo.toUpperCase().trim();
-    if (codigo.length !== 6) {
-      alert('El código debe tener 6 caracteres');
-      return;
-    }
-    
-    const datos = await obtenerPartida(codigo);
-    if (!datos) {
-      alert('Código inválido o partida no encontrada');
-      return;
-    }
-    if (datos.jugadores >= 2) {
-      alert('Esta partida ya está llena');
-      return;
-    }
-    if (Date.now() - datos.creadoEn > 3600000) {
-      alert('Esta partida ha expirado');
-      await eliminarPartida(codigo);
-      return;
-    }
-    
-    setCodigoSesion(codigo);
-    setModoJuego('multijugador');
-    setMiSimbolo('O');
-    setTablero(datos.tablero || Array(9).fill(null));
-    setEsXTurno(datos.turno === 'O');
-    setResultado(null);
-    setPartidaIniciada(true);
-    setMostrarUnirse(false);
-    
-    const guardado = await guardarPartida(codigo, {...datos, jugadores: 2});
-    if (!guardado) {
-      alert('Error al unirse a la partida');
-      volverAlMenu();
+    try {
+      const codigo = inputCodigo.toUpperCase().trim();
+      if (codigo.length !== 6) {
+        alert('El código debe tener 6 caracteres');
+        return;
+      }
+      
+      const datos = await obtenerPartida(codigo);
+      if (!datos) {
+        alert('Código inválido o partida no encontrada');
+        return;
+      }
+      if (datos.jugadores >= 2) {
+        alert('Esta partida ya está llena');
+        return;
+      }
+      if (Date.now() - datos.creadoEn > 3600000) {
+        alert('Esta partida ha expirado');
+        await eliminarPartida(codigo);
+        return;
+      }
+      
+      setCodigoSesion(codigo);
+      setModoJuego('multijugador');
+      setMiSimbolo('O');
+      setTablero(datos.tablero || Array(9).fill(null));
+      setEsXTurno(datos.turno === 'O');
+      setResultado(null);
+      setPartidaIniciada(true);
+      setMostrarUnirse(false);
+      
+      const guardado = await guardarPartida(codigo, {...datos, jugadores: 2});
+      if (!guardado) {
+        alert('Error al unirse a la partida. Intenta nuevamente.');
+        volverAlMenu();
+      }
+    } catch (error) {
+      console.error('Error en unirseAPartida:', error);
+      alert('Error al unirse. Verifica el código e intenta nuevamente.');
     }
   };
 
@@ -376,7 +411,6 @@ export default function TicTacToeGalactico() {
     setInputCodigo('');
     setContadorPartidas(0);
     setSimboloJugador('X');
-    setErrorConexion('');
   };
 
   const esTurnoDeX = modoJuego === 'ia' ? esXTurno : (miSimbolo === 'X' ? esXTurno : !esXTurno);
@@ -396,19 +430,6 @@ export default function TicTacToeGalactico() {
       </nav>
       <div className="main-content">
         <div className="card">
-          {errorConexion && (
-            <div style={{
-              padding: '10px',
-              background: 'rgba(244, 67, 54, 0.2)',
-              borderRadius: '8px',
-              color: '#ff6b6b',
-              marginBottom: '15px',
-              fontSize: '0.9rem'
-            }}>
-              {errorConexion}
-            </div>
-          )}
-          
           {!modoJuego && !mostrarUnirse && (
             <div className="text-center">
               <h2 className="menu-title">Selecciona el modo de juego</h2>
