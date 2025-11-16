@@ -569,7 +569,7 @@ export default function TicTacToeGalactico() {
         </div>
       </div>
       <footer className="app-footer">
-        <p>&copy; 2025 Tic-Tac-Toe - Creado By Sergio Restrepo</p>
+        <p>&copy; 2025 Tic-Tac-Toe - Todos los derechos reservados - Creado By Sergio Restrepo</p>
       </footer>
     </div>
   );
