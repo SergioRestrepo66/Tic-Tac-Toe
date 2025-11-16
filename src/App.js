@@ -455,14 +455,15 @@ export default function TicTacToeGalactico() {
               </button>
               {modoAlmacenamiento === 'local' && (
                 <p style={{
-                  color: 'rgba(255, 214, 10, 0.8)',
-                  fontSize: '0.8rem',
+                  color: 'rgba(255, 255, 255, 1)',
+                  fontSize: '1.1rem',
                   marginTop: '1rem',
                   lineHeight: '1.4',
-                  background: 'rgba(255, 214, 10, 0.1)',
+                  background: 'rgba(7, 28, 41, 0.4)',
                   padding: '10px',
                   borderRadius: '8px'
                 }}>
+                  Tic-Tac-Toe 2025
                 </p>
               )}
             </div>
@@ -510,12 +511,12 @@ export default function TicTacToeGalactico() {
               </div>
               {modoAlmacenamiento === 'local' && (
                 <p style={{
-                  color: 'rgba(255, 214, 10, 0.9)',
+                  color: 'rgba(255, 255, 255, 1)',
                   fontSize: '0.85rem',
                   marginTop: '1rem',
                   lineHeight: '1.4'
                 }}>
-                  Abre otra pestaña en este mismo navegador para unirte
+                  Para Unirte solo copia el codigo y pégalo en el dispositivo de tu amigo/a
                 </p>
               )}
               <button onClick={volverAlMenu} className="cancel-button">Cancelar</button>
