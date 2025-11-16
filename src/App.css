@@ -179,8 +179,12 @@
 }
 
 @media (max-width: 768px) {
+  .app-container {
+    box-sizing: border-box;
+    padding-bottom: 1rem;
+  }
   .app-footer {
-    margin: 0 1.6rem 3.9rem 1rem;
+    margin: 0 1rem;
     border-radius: 10px;
   }
 }
