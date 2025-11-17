@@ -92,52 +92,76 @@ let peerInstance = null;
 const initPeer = (peerId) => {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error('Timeout al conectar con PeerJS'));
-    }, 10000); // 10 segundos máximo
+      reject(new Error('Timeout al conectar con PeerJS. Verifica tu conexión a internet.'));
+    }, 15000); // Aumentado a 15 segundos
 
-    if (!window.Peer) {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.0/dist/peerjs.min.js';
-      script.onload = () => {
-        peerInstance = new window.Peer(peerId, {
+    const initializePeer = () => {
+      try {
+        // Verificar que PeerJS esté disponible
+        if (!window.Peer) {
+          reject(new Error('PeerJS no se cargó correctamente'));
+          return;
+        }
+
+        const peer = new window.Peer(peerId, {
+          debug: 2, // Para ayudar en debugging
           config: {
             iceServers: [
               { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:global.stun.twilio.com:3478' }
+              { urls: 'stun:global.stun.twilio.com:3478' },
+              { urls: 'turn:global.turn.twilio.com:3478?transport=udp', username: 'test', credential: 'test123' }
             ]
           }
         });
-        peerInstance.on('open', () => {
+
+        peer.on('open', (id) => {
+          console.log('Peer conectado con ID:', id);
           clearTimeout(timeout);
-          resolve(peerInstance);
+          resolve(peer);
         });
-        peerInstance.on('error', (err) => {
+
+        peer.on('error', (err) => {
+          console.error('Error de Peer:', err);
           clearTimeout(timeout);
-          reject(err);
+          
+          // Mensajes de error más específicos
+          let mensajeError = 'Error de conexión';
+          if (err.type === 'peer-unavailable') {
+            mensajeError = 'Código de partida no encontrado. Verifica el código.';
+          } else if (err.type === 'network') {
+            mensajeError = 'Error de red. Verifica tu conexión a internet.';
+          } else if (err.type === 'unavailable-id') {
+            mensajeError = 'ID no disponible. Intenta con otro código.';
+          }
+          
+          reject(new Error(mensajeError));
         });
+
+      } catch (error) {
+        clearTimeout(timeout);
+        reject(new Error('Error inicializando Peer: ' + error.message));
+      }
+    };
+
+    // Cargar PeerJS si no está disponible
+    if (!window.Peer) {
+      console.log('Cargando PeerJS...');
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.0/dist/peerjs.min.js';
+      
+      script.onload = () => {
+        console.log('PeerJS cargado correctamente');
+        setTimeout(initializePeer, 500); // Pequeño delay para asegurar carga
       };
+      
       script.onerror = () => {
         clearTimeout(timeout);
-        reject(new Error('Error cargando PeerJS'));
+        reject(new Error('No se pudo cargar PeerJS. Verifica tu conexión.'));
       };
+      
       document.head.appendChild(script);
     } else {
-      peerInstance = new window.Peer(peerId, {
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:global.stun.twilio.com:3478' }
-          ]
-        }
-      });
-      peerInstance.on('open', () => {
-        clearTimeout(timeout);
-        resolve(peerInstance);
-      });
-      peerInstance.on('error', (err) => {
-        clearTimeout(timeout);
-        reject(err);
-      });
+      initializePeer();
     }
   });
 };
@@ -189,6 +213,49 @@ export default function TicTacToeGalactico() {
     };
   }, []);
 
+  const copiarCodigo = async () => {
+    try {
+      // Método moderno con Clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(codigoSesion);
+        setCodigoCopiado(true);
+        setTimeout(() => setCodigoCopiado(false), 2000);
+        return;
+      }
+      
+      // Método alternativo para navegadores más antiguos o móviles
+      const textArea = document.createElement('textarea');
+      textArea.value = codigoSesion;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          setCodigoCopiado(true);
+          setTimeout(() => setCodigoCopiado(false), 2000);
+        } else {
+          throw new Error('Falló execCommand');
+        }
+      } catch (err) {
+        console.error('Falló copiar con execCommand:', err);
+        // Último recurso: mostrar el código para que lo copien manualmente
+        alert(`Código: ${codigoSesion}\n\nCopia este código manualmente y compártelo.`);
+      } finally {
+        document.body.removeChild(textArea);
+      }
+      
+    } catch (error) {
+      console.error('Error al copiar:', error);
+      // Si todo falla, mostrar alerta con el código
+      alert(`Código: ${codigoSesion}\n\nCopia este código manualmente y compártelo.`);
+    }
+  };
+
   const iniciarModoIA = (dif) => {
     setDificultadIA(dif);
     setModoJuego('ia');
@@ -214,6 +281,8 @@ export default function TicTacToeGalactico() {
   const iniciarMultijugador = async () => {
     try {
       const codigo = generarCodigo();
+      console.log('Creando partida con código:', codigo);
+      
       setCodigoSesion(codigo);
       setModoJuego('multijugador');
       setEsperandoJugador(true);
@@ -223,32 +292,37 @@ export default function TicTacToeGalactico() {
       setEsXTurno(true);
       
       const peer = await initPeer(`ttt-${codigo}`);
+      console.log('Peer creado como host');
       
       const waitTimeout = setTimeout(() => {
         if (esperandoJugador) {
-          alert('Tiempo de espera agotado. Intenta nuevamente.');
+          alert('No se unió ningún jugador. El código expiró.');
           volverAlMenu();
         }
-      }, 120000); // 2 minutos máximo esperando
+      }, 180000); // 3 minutos máximo esperando
       
       peer.on('connection', (conn) => {
+        console.log('Jugador conectándose...');
         clearTimeout(waitTimeout);
         connectionRef.current = conn;
         
         conn.on('open', () => {
+          console.log('Conexión abierta con jugador');
           setEsperandoJugador(false);
           setPartidaIniciada(true);
           setConexionEstablecida(true);
           
-          // Enviar estado inicial inmediatamente
+          // Enviar estado inicial
           conn.send({
             tipo: 'inicio',
             tablero: Array(9).fill(null),
-            turno: 'X'
+            turno: 'X',
+            simboloJugador: 'O' // El oponente será O
           });
         });
         
         conn.on('data', (data) => {
+          console.log('Datos recibidos:', data);
           if (data.tipo === 'movimiento') {
             setTablero(data.tablero);
             setEsXTurno(data.turno === 'X');
@@ -263,14 +337,27 @@ export default function TicTacToeGalactico() {
         });
         
         conn.on('close', () => {
+          console.log('Conexión cerrada por el oponente');
           alert('El oponente se desconectó');
           volverAlMenu();
         });
+
+        conn.on('error', (err) => {
+          console.error('Error en conexión:', err);
+          alert('Error en la conexión con el oponente');
+        });
+      });
+      
+      // Manejar errores del peer después de creado
+      peer.on('error', (err) => {
+        console.error('Error del peer host:', err);
+        alert('Error en la conexión: ' + err.message);
+        volverAlMenu();
       });
       
     } catch (error) {
       console.error('Error en iniciar Multijugador:', error);
-      alert('Error al crear la partida. Por favor intenta nuevamente.');
+      alert('Error al crear la partida: ' + error.message);
       volverAlMenu();
     }
   };
@@ -279,34 +366,42 @@ export default function TicTacToeGalactico() {
     try {
       const codigo = inputCodigo.toUpperCase().trim();
       if (codigo.length !== 6) {
-        alert('El código debe tener 6 caracteres');
+        alert('El código debe tener exactamente 6 caracteres');
         return;
       }
+      
+      console.log('Uniéndose a partida con código:', codigo);
       
       setCodigoSesion(codigo);
       setModoJuego('multijugador');
       setMiSimbolo('O');
       setResultado(null);
       setMostrarUnirse(false);
-      setEsperandoJugador(true); // Mostrar pantalla de conexión
+      setEsperandoJugador(true);
       
-      const peer = await initPeer(`ttt-guest-${Date.now()}`);
+      // Generar ID único para el guest
+      const guestId = `ttt-guest-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+      const peer = await initPeer(guestId);
+      console.log('Peer guest creado con ID:', guestId);
       
       const conn = peer.connect(`ttt-${codigo}`, {
         reliable: true,
         serialization: 'json'
       });
+      
       connectionRef.current = conn;
       
       const connectionTimeout = setTimeout(() => {
         if (!conexionEstablecida) {
+          console.log('Timeout de conexión alcanzado');
           conn.close();
           alert('No se pudo conectar. Verifica el código e intenta nuevamente.');
           volverAlMenu();
         }
-      }, 8000); // 8 segundos máximo de espera
+      }, 10000); // 10 segundos máximo
       
       conn.on('open', () => {
+        console.log('Conexión abierta con host');
         clearTimeout(connectionTimeout);
         setConexionEstablecida(true);
         setPartidaIniciada(true);
@@ -314,9 +409,12 @@ export default function TicTacToeGalactico() {
       });
       
       conn.on('data', (data) => {
+        console.log('Datos recibidos del host:', data);
         if (data.tipo === 'inicio') {
           setTablero(data.tablero);
           setEsXTurno(data.turno === 'X');
+          // El host asigna el símbolo O al guest
+          setMiSimbolo(data.simboloJugador || 'O');
         } else if (data.tipo === 'movimiento') {
           setTablero(data.tablero);
           setEsXTurno(data.turno === 'X');
@@ -331,29 +429,23 @@ export default function TicTacToeGalactico() {
       });
       
       conn.on('close', () => {
-        alert('El oponente se desconectó');
+        console.log('Conexión cerrada por el host');
+        alert('El host se desconectó');
         volverAlMenu();
       });
       
       conn.on('error', (err) => {
+        console.error('Error en conexión guest:', err);
         clearTimeout(connectionTimeout);
-        console.error('Error de conexión:', err);
-        alert('No se pudo conectar. Verifica el código.');
+        alert('Error de conexión: ' + (err.message || 'Verifica el código e intenta nuevamente.'));
         volverAlMenu();
       });
       
     } catch (error) {
       console.error('Error en unirseAPartida:', error);
-      alert('Error al unirse. Verifica el código e intenta nuevamente.');
+      alert('Error al unirse: ' + error.message);
       volverAlMenu();
     }
-  };
-
-  const copiarCodigo = () => {
-    navigator.clipboard.writeText(codigoSesion).then(() => {
-      setCodigoCopiado(true);
-      setTimeout(() => setCodigoCopiado(false), 2000);
-    }).catch(() => alert('Código: ' + codigoSesion));
   };
 
   const enviarMovimiento = (nuevoTablero, nuevoTurno, nuevoResultado = null) => {
