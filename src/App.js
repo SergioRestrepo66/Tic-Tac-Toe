@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Copy, Check, Users } from 'lucide-react';
 import './App.css';
 
@@ -86,40 +86,60 @@ const generarCodigo = () => {
   return Array.from({length: 6}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 };
 
-// Sistema de almacenamiento en memoria para partidas multijugador
-const partidasEnMemoria = {};
+// Sistema PeerJS para conexión directa entre dispositivos
+let peerInstance = null;
 
-const guardarPartida = (codigo, datos) => {
-  try {
-    console.log('Guardando partida:', codigo, datos);
-    partidasEnMemoria[codigo] = datos;
-    console.log('Partida guardada exitosamente');
-    return true;
-  } catch (error) {
-    console.error('Error guardando partida:', error);
-    return false;
-  }
-};
+const initPeer = (peerId) => {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Timeout al conectar con PeerJS'));
+    }, 10000); // 10 segundos máximo
 
-const obtenerPartida = (codigo) => {
-  try {
-    console.log('Obteniendo partida:', codigo);
-    const partida = partidasEnMemoria[codigo] || null;
-    console.log('Partida obtenida:', partida);
-    return partida;
-  } catch (error) {
-    console.error('Error obteniendo partida:', error);
-    return null;
-  }
-};
-
-const eliminarPartida = (codigo) => {
-  try {
-    delete partidasEnMemoria[codigo];
-    console.log('Partida eliminada:', codigo);
-  } catch (error) {
-    console.error('Error eliminando partida:', error);
-  }
+    if (!window.Peer) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.0/dist/peerjs.min.js';
+      script.onload = () => {
+        peerInstance = new window.Peer(peerId, {
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:global.stun.twilio.com:3478' }
+            ]
+          }
+        });
+        peerInstance.on('open', () => {
+          clearTimeout(timeout);
+          resolve(peerInstance);
+        });
+        peerInstance.on('error', (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        });
+      };
+      script.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error('Error cargando PeerJS'));
+      };
+      document.head.appendChild(script);
+    } else {
+      peerInstance = new window.Peer(peerId, {
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:global.stun.twilio.com:3478' }
+          ]
+        }
+      });
+      peerInstance.on('open', () => {
+        clearTimeout(timeout);
+        resolve(peerInstance);
+      });
+      peerInstance.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    }
+  });
 };
 
 const Celda = ({ valor, onClick, esGanadora }) => (
@@ -149,56 +169,25 @@ export default function TicTacToeGalactico() {
   const [dificultadIA, setDificultadIA] = useState('media');
   const [simboloJugador, setSimboloJugador] = useState('X');
   const [contadorPartidas, setContadorPartidas] = useState(0);
-  const [modoAlmacenamiento, setModoAlmacenamiento] = useState('desconocido');
-
-  useEffect(() => {
-    // Detectar si window.storage está disponible
-    const detectarAlmacenamiento = async () => {
-      try {
-        if (typeof window !== 'undefined' && window.storage) {
-          setModoAlmacenamiento('cloud');
-        } else {
-          setModoAlmacenamiento('local');
-        }
-      } catch {
-        setModoAlmacenamiento('local');
-      }
-    };
-    detectarAlmacenamiento();
-  }, []);
+  const [conexionEstablecida, setConexionEstablecida] = useState(false);
+  
+  const connectionRef = useRef(null);
 
   useEffect(() => {
     if (tablero.every(c => c === null) && resultado) setResultado(null);
   }, [tablero, resultado]);
 
   useEffect(() => {
-    if (modoJuego === 'multijugador' && codigoSesion && !mostrarUnirse) {
-      const sync = async () => {
-        try {
-          const datos = await obtenerPartida(codigoSesion);
-          if (datos) {
-            if (datos.jugadores === 2 && esperandoJugador) {
-              setEsperandoJugador(false);
-              setPartidaIniciada(true);
-            }
-            if (datos.tablero && JSON.stringify(datos.tablero) !== JSON.stringify(tablero)) {
-              setTablero(datos.tablero);
-            }
-            const esMiTurno = datos.turno === miSimbolo;
-            if (esXTurno !== esMiTurno) setEsXTurno(esMiTurno);
-            if (JSON.stringify(datos.resultado) !== JSON.stringify(resultado)) {
-              setResultado(datos.resultado);
-            }
-          }
-        } catch (error) {
-          console.error('Error sincronizando:', error);
-        }
-      };
-      sync();
-      const intervalo = setInterval(sync, 1500);
-      return () => clearInterval(intervalo);
-    }
-  }, [modoJuego, codigoSesion, esperandoJugador, miSimbolo, mostrarUnirse, tablero, esXTurno, resultado]);
+    return () => {
+      if (connectionRef.current) {
+        connectionRef.current.close();
+      }
+      if (peerInstance) {
+        peerInstance.destroy();
+        peerInstance = null;
+      }
+    };
+  }, []);
 
   const iniciarModoIA = (dif) => {
     setDificultadIA(dif);
@@ -233,26 +222,56 @@ export default function TicTacToeGalactico() {
       setResultado(null);
       setEsXTurno(true);
       
-      const guardado = await guardarPartida(codigo, {
-        tablero: Array(9).fill(null),
-        turno: 'X',
-        jugadores: 1,
-        resultado: null,
-        creadoEn: Date.now()
+      const peer = await initPeer(`ttt-${codigo}`);
+      
+      const waitTimeout = setTimeout(() => {
+        if (esperandoJugador) {
+          alert('Tiempo de espera agotado. Intenta nuevamente.');
+          volverAlMenu();
+        }
+      }, 120000); // 2 minutos máximo esperando
+      
+      peer.on('connection', (conn) => {
+        clearTimeout(waitTimeout);
+        connectionRef.current = conn;
+        
+        conn.on('open', () => {
+          setEsperandoJugador(false);
+          setPartidaIniciada(true);
+          setConexionEstablecida(true);
+          
+          // Enviar estado inicial inmediatamente
+          conn.send({
+            tipo: 'inicio',
+            tablero: Array(9).fill(null),
+            turno: 'X'
+          });
+        });
+        
+        conn.on('data', (data) => {
+          if (data.tipo === 'movimiento') {
+            setTablero(data.tablero);
+            setEsXTurno(data.turno === 'X');
+            if (data.resultado) {
+              setResultado(data.resultado);
+            }
+          } else if (data.tipo === 'reinicio') {
+            setTablero(Array(9).fill(null));
+            setResultado(null);
+            setEsXTurno(true);
+          }
+        });
+        
+        conn.on('close', () => {
+          alert('El oponente se desconectó');
+          volverAlMenu();
+        });
       });
       
-      if (!guardado) {
-        alert('Error al crear la partida. Por favor intenta nuevamente.');
-        setEsperandoJugador(false);
-        setModoJuego(null);
-        setCodigoSesion('');
-      }
     } catch (error) {
-      console.error('Error en iniciarMultijugador:', error);
+      console.error('Error en iniciar Multijugador:', error);
       alert('Error al crear la partida. Por favor intenta nuevamente.');
-      setEsperandoJugador(false);
-      setModoJuego(null);
-      setCodigoSesion('');
+      volverAlMenu();
     }
   };
 
@@ -264,38 +283,69 @@ export default function TicTacToeGalactico() {
         return;
       }
       
-      const datos = await obtenerPartida(codigo);
-      if (!datos) {
-        alert('Código inválido o partida no encontrada');
-        return;
-      }
-      if (datos.jugadores >= 2) {
-        alert('Esta partida ya está llena');
-        return;
-      }
-      if (Date.now() - datos.creadoEn > 3600000) {
-        alert('Esta partida ha expirado');
-        await eliminarPartida(codigo);
-        return;
-      }
-      
       setCodigoSesion(codigo);
       setModoJuego('multijugador');
       setMiSimbolo('O');
-      setTablero(datos.tablero || Array(9).fill(null));
-      setEsXTurno(datos.turno === 'O');
       setResultado(null);
-      setPartidaIniciada(true);
       setMostrarUnirse(false);
+      setEsperandoJugador(true); // Mostrar pantalla de conexión
       
-      const guardado = await guardarPartida(codigo, {...datos, jugadores: 2});
-      if (!guardado) {
-        alert('Error al unirse a la partida. Intenta nuevamente.');
+      const peer = await initPeer(`ttt-guest-${Date.now()}`);
+      
+      const conn = peer.connect(`ttt-${codigo}`, {
+        reliable: true,
+        serialization: 'json'
+      });
+      connectionRef.current = conn;
+      
+      const connectionTimeout = setTimeout(() => {
+        if (!conexionEstablecida) {
+          conn.close();
+          alert('No se pudo conectar. Verifica el código e intenta nuevamente.');
+          volverAlMenu();
+        }
+      }, 8000); // 8 segundos máximo de espera
+      
+      conn.on('open', () => {
+        clearTimeout(connectionTimeout);
+        setConexionEstablecida(true);
+        setPartidaIniciada(true);
+        setEsperandoJugador(false);
+      });
+      
+      conn.on('data', (data) => {
+        if (data.tipo === 'inicio') {
+          setTablero(data.tablero);
+          setEsXTurno(data.turno === 'X');
+        } else if (data.tipo === 'movimiento') {
+          setTablero(data.tablero);
+          setEsXTurno(data.turno === 'X');
+          if (data.resultado) {
+            setResultado(data.resultado);
+          }
+        } else if (data.tipo === 'reinicio') {
+          setTablero(Array(9).fill(null));
+          setResultado(null);
+          setEsXTurno(true);
+        }
+      });
+      
+      conn.on('close', () => {
+        alert('El oponente se desconectó');
         volverAlMenu();
-      }
+      });
+      
+      conn.on('error', (err) => {
+        clearTimeout(connectionTimeout);
+        console.error('Error de conexión:', err);
+        alert('No se pudo conectar. Verifica el código.');
+        volverAlMenu();
+      });
+      
     } catch (error) {
       console.error('Error en unirseAPartida:', error);
       alert('Error al unirse. Verifica el código e intenta nuevamente.');
+      volverAlMenu();
     }
   };
 
@@ -304,6 +354,17 @@ export default function TicTacToeGalactico() {
       setCodigoCopiado(true);
       setTimeout(() => setCodigoCopiado(false), 2000);
     }).catch(() => alert('Código: ' + codigoSesion));
+  };
+
+  const enviarMovimiento = (nuevoTablero, nuevoTurno, nuevoResultado = null) => {
+    if (connectionRef.current && connectionRef.current.open) {
+      connectionRef.current.send({
+        tipo: 'movimiento',
+        tablero: nuevoTablero,
+        turno: nuevoTurno,
+        resultado: nuevoResultado
+      });
+    }
   };
 
   const manejarClick = async (indice) => {
@@ -323,15 +384,8 @@ export default function TicTacToeGalactico() {
     if (res) {
       setResultado(res);
       if (modoJuego === 'multijugador') {
-        const datos = await obtenerPartida(codigoSesion);
-        if (datos) {
-          await guardarPartida(codigoSesion, {
-            ...datos,
-            tablero: nuevo,
-            turno: miSimbolo === 'X' ? 'O' : 'X',
-            resultado: res
-          });
-        }
+        const nuevoTurno = miSimbolo === 'X' ? 'O' : 'X';
+        enviarMovimiento(nuevo, nuevoTurno, res);
       }
       return;
     }
@@ -352,14 +406,8 @@ export default function TicTacToeGalactico() {
       }, 500);
     } else {
       setEsXTurno(!esXTurno);
-      const datos = await obtenerPartida(codigoSesion);
-      if (datos) {
-        await guardarPartida(codigoSesion, {
-          ...datos,
-          tablero: nuevo,
-          turno: miSimbolo === 'X' ? 'O' : 'X'
-        });
-      }
+      const nuevoTurno = miSimbolo === 'X' ? 'O' : 'X';
+      enviarMovimiento(nuevo, nuevoTurno);
     }
   };
 
@@ -387,19 +435,25 @@ export default function TicTacToeGalactico() {
       setTablero(Array(9).fill(null));
       setResultado(null);
       setEsXTurno(true);
-      const datos = await obtenerPartida(codigoSesion);
-      if (datos) {
-        await guardarPartida(codigoSesion, {
-          ...datos,
-          tablero: Array(9).fill(null),
-          turno: 'X',
-          resultado: null
+      
+      if (connectionRef.current && connectionRef.current.open) {
+        connectionRef.current.send({
+          tipo: 'reinicio'
         });
       }
     }
   };
 
   const volverAlMenu = () => {
+    if (connectionRef.current) {
+      connectionRef.current.close();
+      connectionRef.current = null;
+    }
+    if (peerInstance) {
+      peerInstance.destroy();
+      peerInstance = null;
+    }
+    
     setModoJuego(null);
     setTablero(Array(9).fill(null));
     setEsXTurno(true);
@@ -411,6 +465,7 @@ export default function TicTacToeGalactico() {
     setInputCodigo('');
     setContadorPartidas(0);
     setSimboloJugador('X');
+    setConexionEstablecida(false);
   };
 
   const esTurnoDeX = modoJuego === 'ia' ? esXTurno : (miSimbolo === 'X' ? esXTurno : !esXTurno);
@@ -447,25 +502,18 @@ export default function TicTacToeGalactico() {
                   ))}
                 </div>
               </div>
-              <button onClick={iniciarMultijugador} className="menu-button create-game-button">
+              <button 
+                onClick={iniciarMultijugador} 
+                className="menu-button create-game-button"
+              >
                 <Users size={24}/> Crear Partida Multijugador
               </button>
-              <button onClick={() => setMostrarUnirse(true)} className="menu-button join-game-button">
+              <button 
+                onClick={() => setMostrarUnirse(true)} 
+                className="menu-button join-game-button"
+              >
                 Unirse a Partida
               </button>
-              {modoAlmacenamiento === 'local' && (
-                <p style={{
-                  color: 'rgba(255, 255, 255, 1)',
-                  fontSize: '1.1rem',
-                  marginTop: '1rem',
-                  lineHeight: '1.4',
-                  background: 'rgba(7, 28, 41, 0.4)',
-                  padding: '10px',
-                  borderRadius: '8px'
-                }}>
-                  Tic-Tac-Toe 2025
-                </p>
-              )}
             </div>
           )}
           
@@ -509,27 +557,30 @@ export default function TicTacToeGalactico() {
                 <div className="spinner"/>
                 <p className="waiting-text">Esperando jugador...</p>
               </div>
-              {modoAlmacenamiento === 'local' && (
-                <p style={{
-                  color: 'rgba(255, 255, 255, 1)',
-                  fontSize: '0.85rem',
-                  marginTop: '1rem',
-                  lineHeight: '1.4'
-                }}>
-                  Para Unirte solo copia el codigo y pégalo en el dispositivo de tu amigo/a
-                </p>
-              )}
+              <p style={{
+                color: 'rgba(255, 255, 255, 1)',
+                fontSize: '0.85rem',
+                marginTop: '1rem',
+                lineHeight: '1.4'
+              }}>
+                Comparte este código con tu amigo/a
+              </p>
               <button onClick={volverAlMenu} className="cancel-button">Cancelar</button>
             </div>
           )}
           
-          {modoJuego && partidaIniciada && (
+          {modoJuego && partidaIniciada && !esperandoJugador && (
             <>
               {modoJuego === 'ia' && 
                 <div className="game-info">
                   <span>{cicloInfo}</span>
                 </div>
               }
+              {modoJuego === 'multijugador' && conexionEstablecida && (
+                <div className="game-info">
+                  <span style={{color: '#22c55e'}}>● Conectado</span>
+                </div>
+              )}
               <div className="status-bar">
                 {resultado ? (
                   <div className="status-result">

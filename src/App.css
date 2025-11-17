@@ -8,8 +8,21 @@
   to { transform: scale(1); opacity: 1; }
 }
 
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 .app-container {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh; /* Para móviles modernos */
   display: flex;
   flex-direction: column;
   background-image: url("https://images.unsplash.com/photo-1502134249126-9f3755a50d78?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80");
@@ -27,12 +40,13 @@
   height: 100%;
   background: rgba(10, 10, 46, 0.6);
   opacity: 0.8;
+  pointer-events: none;
 }
 
 .app-nav {
   background: rgba(10, 10, 46, 0.8);
   backdrop-filter: blur(10px);
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 1rem;
   box-shadow: 0 2px 10px rgba(0, 255, 255, 0.3);
   position: relative;
   z-index: 10;
@@ -41,7 +55,7 @@
 
 .app-title {
   margin: 0;
-  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  font-size: clamp(1rem, 3vw, 1.5rem);
   font-weight: bold;
   color: #00FFFF;
   text-shadow: 0 0 20px #00FFFF;
@@ -57,114 +71,130 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 0.5rem;
   position: relative;
   z-index: 1;
-  overflow: auto;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .card {
   background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
+  backdrop-filter: blur(15px);
+  border-radius: 15px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-  padding: clamp(15px, 3vw, 30px);
+  padding: clamp(25px, 2vw, 20px);
   max-width: 500px;
-  width: 100%;
+  width: 99%;
+  margin-left: 4px;
   max-height: 100%;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.text-center {
   text-align: center;
 }
 
 .menu-title {
   color: #FFF;
-  margin-bottom: 2rem;
-  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  margin-bottom: 1.25rem;
+  font-size: clamp(1rem, 3vw, 1.3rem);
 }
 
-.difficulty-selection h3 {
-  color: #FFF;
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
+.difficulty-selection {
+  margin-bottom: 1.25rem;
 }
 
 .difficulty-title {
   color: #FFF;
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
+  margin-bottom: 0.4rem;
+  font-size: clamp(0.85rem, 2vw, 1rem);
 }
 
 .difficulty-buttons {
   display: flex;
   gap: 8px;
-  margin-bottom: 15px;
+  margin-bottom: 0;
 }
 
 .difficulty-button {
   flex: 1;
-  padding: 12px;
+  padding: clamp(10px, 2vw, 14px);
   border: none;
   border-radius: 8px;
   color: #FFF;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
   font-weight: 600;
   cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.difficulty-button:hover {
+  transform: translateY(-2px);
 }
 
 .difficulty-button.easy {
-  background: linear-gradient(135deg, #10f117 0%, #8BC34A 100%);
+  background: linear-gradient(135deg, #10f117 0%, #99c765 100%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .difficulty-button.media {
   background: linear-gradient(135deg, #FF9800 0%, #fdcb32 100%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .difficulty-button.dificil {
-  background: linear-gradient(135deg, #F44336 0%, #e23b73 100%);
+  background: linear-gradient(135deg, #F44336 0%, #d84979 100%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .menu-button {
   width: 100%;
-  padding: 15px;
-  margin-bottom: 15px;
+  padding: clamp(12px, 2.5vw, 15px);
+  margin-bottom: 0.75rem;
   border: none;
   border-radius: 10px;
   color: #FFF;
-  font-size: 1.1rem;
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+.menu-button:hover {
+  transform: translateY(-2px);
 }
 
 .create-game-button {
-  background: linear-gradient(135deg, #9D4EDD 0%, #FF00FF 100%);
-  box-shadow: 0 4px 15px rgba(157, 78, 221, 0.4);
+  background: linear-gradient(135deg, #FF00FF 100%, #9D4EDD 0%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .join-game-button {
-  background: linear-gradient(135deg, #FFD60A 0%, #FFA500 100%);
-  color: #0a0a2e;
-  box-shadow: 0 4px 15px rgba(255, 214, 10, 0.4);
+  background: linear-gradient(135deg, #FFA500 100%, #FFD60A 0%);
+  color: #fcfcff;
+    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .join-screen-title {
   color: #FFF;
-  margin-bottom: 1.5rem;
-  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  margin-bottom: 1.9rem;
+  font-size: clamp(1rem, 5vw, 1.3rem);
 }
 
 .code-input {
   width: 100%;
-  padding: 15px;
-  margin-bottom: 15px;
-  font-size: 1.5rem;
+  padding: clamp(12px, 2.5vw, 16px);
+  margin-bottom: 1rem;
+  font-size: clamp(1.2rem, 4vw, 1.5rem);
   text-align: center;
-  letter-spacing: 8px;
+  letter-spacing: 6px;
   background: rgb(255, 255, 255);
   border: 2px solid #0a1aff;
   border-radius: 10px;
@@ -178,29 +208,24 @@
   box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
 }
 
-@media (max-width: 768px) {
-  .app-container {
-    box-sizing: border-box;
-    padding-bottom: 1rem;
-  }
-  .app-footer {
-    margin: 0 1rem;
-    border-radius: 10px;
-  }
-}
-
 .join-button {
   width: 100%;
-  padding: 15px;
-  margin-bottom: 10px;
+  padding: clamp(12px, 2.5vw, 16px);
+  margin-bottom: 0.75rem;
   border: none;
   border-radius: 10px;
-  font-size: 1.1rem;
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
   font-weight: 600;
+  transition: transform 0.2s;
+}
+
+.join-button:enabled:hover {
+  transform: translateY(-2px);
 }
 
 .join-button:disabled {
   background: rgb(52, 212, 212);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   color: #ffffff;
   cursor: not-allowed;
 }
@@ -213,23 +238,28 @@
 
 .back-button {
   width: 100%;
-  padding: 12px;
-  background: transparent;
+  padding: clamp(10px, 2vw, 14px);
+  background-color: #fd9432;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 10px;
   color: #FFF;
-  font-size: 1rem;
+  font-size: clamp(0.85rem, 2vw, 1rem);
   cursor: pointer;
+  transition: transform 0.2s;
 }
 
-.waiting-screen h3 {
-  color: #ffffff;
-  margin-bottom: 1rem;
+.back-button:hover {
+  transform: translateY(-2px);
+}
+
+.waiting-screen {
+  text-align: center;
 }
 
 .waiting-title {
   color: #FFF;
   margin-bottom: 1rem;
+  font-size: clamp(1.3rem, 2.5vw, 1.1rem);
 }
 
 .session-code-container {
@@ -237,15 +267,15 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .session-code {
-  font-size: clamp(1.5rem, 5vw, 2rem);
+  font-size: clamp(1.7rem, 10vw, 1.8rem);
   font-weight: bold;
   color: #FFD60A;
-  letter-spacing: 8px;
-  padding: 15px 30px;
+  letter-spacing: clamp(4px, 1.5vw, 8px);
+  padding: clamp(12px, 2vw, 16px) clamp(18px, 3vw, 28px);
   background: rgba(255, 214, 10, 0.1);
   border-radius: 10px;
   border: 2px solid #FFD60A;
@@ -253,50 +283,65 @@
 }
 
 .copy-button {
-  padding: 15px;
+  padding: clamp(17px, 3vw, 16px);
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid #00FFFF;
   border-radius: 10px;
   color: #00FFFF;
   cursor: pointer;
+  transition: transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copy-button:hover {
+  transform: scale(1.05);
 }
 
 .spinner-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
+  margin-bottom: 1.25rem;
 }
 
 .spinner {
-  width: 50px;
-  height: 50px;
-  border: 5px solid rgba(0, 255, 255, 0.3);
-  border-top: 5px solid #00FFFF;
+  width: clamp(40px, 8vw, 50px);
+  height: clamp(40px, 8vw, 50px);
+  border: 4px solid rgba(0, 255, 255, 0.3);
+  border-top: 4px solid #00FFFF;
   border-radius: 50%;
   animation: girar 1s linear infinite;
 }
 
 .waiting-text {
   color: #FFF;
-  font-size: 1.1rem;
+  font-size: clamp(0.9rem, 2.5vw, 1.1rem);
   margin: 0;
 }
 
 .cancel-button {
-  margin-top: 2rem;
-  padding: 12px 24px;
-  background: transparent;
+  margin-top: 0.75rem;
+  padding: clamp(10px, 2vw, 14px) clamp(18px, 3vw, 26px);
+  background-color: #F44336;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 10px;
   color: #FFF;
   cursor: pointer;
+  transition: transform 0.2s;
+  font-size: clamp(0.85rem, 2vw, 1rem);
+}
+
+.cancel-button:hover {
+  transform: translateY(-2px);
 }
 
 .game-info {
   text-align: center;
-  margin-bottom: 0.5rem;
-  padding: 8px;
+  margin-bottom: 0.4rem;
+  padding: 6px;
   background: rgba(0, 255, 255, 0.1);
   border-radius: 8px;
   border: 1px solid rgba(0, 255, 255, 0.3);
@@ -304,19 +349,19 @@
 
 .game-info span {
   color: #00FFFF;
-  font-size: clamp(0.75rem, 1.8vw, 0.9rem);
+  font-size: clamp(0.7rem, 1.8vw, 0.85rem);
   font-weight: 600;
 }
 
 .status-bar {
   text-align: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
   color: #FFF;
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  font-size: clamp(0.85rem, 2vw, 1rem);
 }
 
 .status-result {
-  padding: 15px;
+  padding: clamp(10px, 2vw, 15px);
   background: rgba(255, 215, 0, 0.2);
   border-radius: 10px;
   border: 2px solid #FFD700;
@@ -338,18 +383,23 @@
 
 .game-buttons {
   display: flex;
-  gap: 10px;
-  margin-top: 1rem;
+  gap: 8px;
+  margin-top: 0.75rem;
 }
 
 .game-button {
   flex: 1;
-  padding: 12px;
+  padding: clamp(8px, 2vw, 12px);
   border: none;
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: clamp(0.85rem, 2vw, 1rem);
   font-weight: 600;
   cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.game-button:hover {
+  transform: translateY(-2px);
 }
 
 .restart-button {
@@ -366,14 +416,18 @@
 .app-footer {
   background: rgba(10, 10, 46, 0.8);
   backdrop-filter: blur(10px);
-  padding: 0.75rem;
+  padding: 0.5rem;
   box-shadow: 0 -2px 10px rgba(0, 255, 255, 0.3);
   text-align: center;
   color: #FFF;
-  font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+  font-size: clamp(0.65rem, 1.5vw, 0.85rem);
   position: relative;
   z-index: 10;
   flex-shrink: 0;
+}
+
+.app-footer p {
+  margin: 0;
 }
 
 .celda {
@@ -385,14 +439,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(2rem, 5vw, 3rem);
+  font-size: clamp(1.8rem, 5vw, 3rem);
   font-weight: bold;
   cursor: pointer;
   transition: all 0.3s;
 }
 
+.celda:hover:not(.not-allowed) {
+  background: rgba(0, 255, 255, 0.1);
+  transform: scale(1.05);
+}
+
 .celda.not-allowed {
-    cursor: not-allowed;
+  cursor: not-allowed;
 }
 
 .celda.ganadora {
@@ -416,18 +475,101 @@
 .tablero {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: clamp(6px, 1.5vw, 10px);
   max-width: 400px;
   margin: 0 auto;
-  padding: 10px;
+  padding: 8px;
 }
 
 button:active {
-  transform: scale(0.98) !important;
+  transform: scale(0.95) !important;
 }
 
-input:focus {
-  outline: none;
-  border-color: #00FFFF;
-  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+/* Estilos adicionales para pantallas muy pequeñas */
+@media (max-height: 700px) {
+  .app-nav {
+    padding: 0.4rem 0.75rem;
+  }
+
+  .app-title {
+    font-size: 1rem;
+  }
+
+  .card {
+    padding: 20px;
+    border-radius: 12px;
+  }
+
+  .menu-title,
+  .join-screen-title,
+  .waiting-title {
+    margin-bottom: 0.5rem;
+  }
+
+  .difficulty-selection {
+    margin-bottom: 0.7rem;
+    padding: 3px;
+  }
+
+  .menu-button {
+    padding: 13px;
+    margin-bottom: 0.4rem;
+  }
+
+  .session-code-container {
+    margin-bottom: 0.75rem;
+  }
+
+  .spinner-container {
+    gap: 8px;
+    margin-bottom: 0.5rem;
+  }
+
+  .spinner {
+    width: 35px;
+    height: 35px;
+  }
+
+  .game-info {
+    padding: 4px;
+    margin-bottom: 0.3rem;
+  }
+
+  .status-bar {
+    margin-bottom: 0.4rem;
+  }
+
+  .tablero {
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .game-buttons {
+    margin-top: 0.5rem;
+    gap: 6px;
+  }
+
+  .app-footer {
+    padding: 0.4rem;
+  }
+}
+
+@media (max-height: 600px) {
+  .main-content {
+    padding: 0.25rem;
+  }
+
+  .card {
+    padding: 6px;
+  }
+
+  .difficulty-button {
+    padding: 6px;
+    font-size: 0.75rem;
+  }
+
+  .menu-button {
+    padding: 6px;
+    font-size: 0.85rem;
+  }
 }
